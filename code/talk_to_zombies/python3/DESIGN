@@ -1,0 +1,23 @@
+server
+   handles connections (duh)
+   handles game session spawning
+   each connection can have either a lobby state, ingame state or endgame state
+   lobby state:
+      can create or join a game session
+   ingame state:
+      is updated with events from ingame (game session sends events to the server object, server object adds to per-connection queue)
+         gameover event skips other events
+      can send shoot commands
+      at gameover, enters endgame state
+   endgame state:
+      entered when game is over, all players are told who won (either a player or the zombie)
+      can go back to lobby or disconnect
+      if no command for 10 seconds, defaults to disconnect
+
+game session
+   uses coroutine to implement zombie
+        every second, zombie moves to new location
+   command queue for players
+        server/protocol can add shoot commands to the queue
+
+   
