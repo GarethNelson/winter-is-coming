@@ -12,8 +12,9 @@ ENDGAME_MODE = 2
 
 MOTD = "Welcome to the server!"
 
-LOBBY_COMMANDS  = set(('START','NAME','JOIN','QUIT'))
-INGAME_COMMANDS = set(('SHOOT','NAME','LEAVE','QUIT')) 
+LOBBY_COMMANDS   = set(('START','NAME','JOIN','QUIT'))
+INGAME_COMMANDS  = set(('SHOOT','NAME','LEAVE','QUIT')) 
+ENDGAME_COMMANDS = set(('LEAVE', 'QUIT'))
 
 class ZombieGameClient:
    def __init__(self,server,name,reader,writer):
@@ -40,6 +41,9 @@ class ZombieGameClient:
        self.send_line('NAME Name changed')
        if self.state == INGAME_MODE:
           pass # here we'd broadcast the name change to other players
+   def game_over(self):
+       self.state         = ENDGAME_MODE
+       self.state_handler = self.endgame_handler
    def join_game(self, game):
        game.join_player(self)
        self.cur_game = game
@@ -66,6 +70,29 @@ class ZombieGameClient:
        self.server.current_games[game_name] = new_game
        logging.info('Client %s started game %s with username %s',game_name,self.name,self.username)
        self.join_game(new_game)
+   def handle_shootcmd(self,x,y):
+       try:
+          x = int(x)
+          y = int(y)
+       except ValueError as e:
+          self.send_line('ERROR the command takes 2 integer parameters')
+          return
+       if (x<0) or (x>9) or (y<0) or (y>29):
+          self.send_line('ERROR game world is from (0,0) to (9,29)')
+          return
+       self.cur_game.player_shoot(self,x,y)
+   def endgame_handler(self,line):
+       split_line = line.split(' ')
+       if len(split_line)==0: return
+       command = split_line[0]
+       if not command in INGAME_COMMANDS:
+          self.send_line('ERROR invalid command')
+       elif command=='QUIT':
+          self.close('User quit')
+          return
+       elif command=='LEAVE':
+          self.leave_game()
+          return
    def ingame_handler(self,line):
        split_line = line.split(' ')
        if len(split_line)==0: return
@@ -77,6 +104,15 @@ class ZombieGameClient:
           return
        elif command=='LEAVE':
           self.leave_game()
+          return
+       if len(split_line)==2:
+          if command=='NAME': handle_namecmd(split_line[1])
+          return
+       elif len(split_line)==3:
+          if command=='SHOOT':
+             self.handle_shootcmd(*split_line[1:])
+       else:
+          self.send_line('ERROR invalid command')
    def lobby_handler(self,line):
        split_line = line.split(' ')
        if len(split_line)==0: return
@@ -105,11 +141,10 @@ class ZombieGameClient:
        self.send_line('MOTD Valid commands are: %s' % ' '.join(LOBBY_COMMANDS))
        for k,v in self.server.current_games.items():
            self.send_line('GAME %s is active with %s players' % (k,len(v.players)))
-   @asyncio.coroutine
-   def handle_loop(self):
+   async def handle_loop(self):
        while self.running:
           try:
-             in_line = yield from asyncio.wait_for(self.read_line(), self.timeout)
+             in_line = await asyncio.wait_for(self.read_line(), self.timeout)
              self.state_handler(in_line)
           except asyncio.TimeoutError as e:
              self.close('Timed out')
@@ -119,22 +154,20 @@ class ZombieGameServer:
        self.clients       = {} # maps by IP:port names
        self.current_games = {}
        self.loop          = asyncio.get_event_loop()
-   @asyncio.coroutine
-   def handle_connection(self, reader, writer):
+   async def handle_connection(self, reader, writer):
        peername   = ':'.join(map (lambda x: str(x), writer.get_extra_info('peername')))
        new_client = ZombieGameClient(self,peername,reader,writer)
        self.clients[peername] = new_client
        logging.info('New connection %s', peername)
        try:
-          yield from new_client.handle_loop()
+          await new_client.handle_loop()
        except BrokenPipeError as e:
           logging.info('Client %s disconnected', peername)
           self.delete_client(new_client)
    def delete_client(self,client):
        del self.clients[client.name]
-       if client.state == INGAME_MODE:
-          if client.cur_game != None:
-             client.cur_game.leave_player(client)
+       if client.cur_game != None:
+          client.cur_game.leave_player(client)
        logging.info('Deleted client %s', client.name)
    def start_server(self):
        self.server = self.loop.run_until_complete(asyncio.start_server(self.handle_connection,'0.0.0.0',1337, loop=self.loop))
