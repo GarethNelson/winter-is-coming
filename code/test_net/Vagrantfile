@@ -10,10 +10,10 @@ SCRIPT
 $natgw_script = <<-SCRIPT
 sysctl net.inet.ip.forwarding=1
 echo realnet  = "em0" >/etc/pf.conf
-internal = "em1" >>/etc/pf.conf
-fakenet  = "em2" >>/etc/pf.conf
-pass out on $fakenet from 192.168.1.0/24 to any nat-to $fakenet >>/etc/pf.conf
-pass out on $realnet from 192.168.1.0/24 to any nat-to $realnet >>/etc/pf.conf
+echo internal = "em1" >>/etc/pf.conf
+echo fakenet  = "em2" >>/etc/pf.conf
+echo pass out on $fakenet from 192.168.1.0/24 to any nat-to $fakenet >>/etc/pf.conf
+echo pass out on $realnet from 192.168.1.0/24 to any nat-to $realnet >>/etc/pf.conf
 
 pfctl -f /etc/pf.conf
 SCRIPT
