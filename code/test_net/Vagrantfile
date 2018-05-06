@@ -12,7 +12,12 @@ echo 1 > /proc/sys/net/ipv4/ip_forward
 /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 /sbin/iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 /sbin/iptables -A FORWARD -i eth1 -o eth0 -j ACCEPT
+SCRIPT
 
+$server_script = <<-SCRIPT
+apt-get -y install coturn
+cp /vagrant/turnserver.conf /etc/turnserver.conf
+turnserver &
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -43,5 +48,12 @@ Vagrant.configure("2") do |config|
     natgw2.vm.network  :private_network, ip: "192.168.1.1", virtualbox__intnet: "client_net2"
     natgw2.vm.network  :private_network, ip: "172.16.0.2",  virtualbox__intnet: "fake_internet"
     natgw2.vm.provision "shell", inline: $natgw_script
+  end
+
+  config.vm.define "server" do |server|
+    server.vm.box      = "debian/jessie64"
+    server.vm.hostname = "server"
+    server.vm.network  :private_network, ip: "172.16.0.10", virtualbox__intnet: "fake_internet"
+    server.vm.provision "shell", inline: $server_script
   end
 end
