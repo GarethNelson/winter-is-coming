@@ -1,0 +1,42 @@
+$client_script = <<-SCRIPT
+route del default
+route add default gw 192.168.1.1
+SCRIPT
+
+$natgw_script = <<-SCRIPT
+echo 1 > /proc/sys/net/ipv4/ip_forward
+/sbin/iptables -t nat -A POSTROUTING -o eth2 -j MASQUERADE
+/sbin/iptables -A FORWARD -i eth1 -o eth2 -m state --state RELATED,ESTABLISHED -j ACCEPT
+/sbin/iptables -A FORWARD -i eth1 -o eth2 -j ACCEPT
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.define "client1" do |client1|
+    client1.vm.box = "debian/jessie64"
+    client1.vm.hostname = 'client1'
+    client1.vm.network :private_network, ip: "192.168.1.10", virtualbox__intnet: "client_net1"
+    client1.vm.provision "shell", inline: $client_script
+  end
+  config.vm.define "client2" do |client2|
+    client2.vm.box = "debian/jessie64"
+    client2.vm.hostname = 'client2'
+    client2.vm.network :private_network, ip: "192.168.1.10", virtualbox__intnet: "client_net2"
+    client2.vm.provision "shell", inline: $client_script
+  end
+
+  config.vm.define "natgw1" do |natgw1|
+    natgw1.vm.box      = "debian/jessie64"
+    natgw1.vm.hostname = "natgw1"
+    natgw1.vm.network  :private_network, ip: "192.168.1.1", virtualbox__intnet: "client_net1"
+    natgw1.vm.network  :private_network, ip: "172.16.0.1",  virtualbox__intnet: "fake_internet"
+    natgw1.vm.provision "shell", inline: $natgw_script
+  end
+
+  config.vm.define "natgw2" do |natgw2|
+    natgw2.vm.box      = "debian/jessie64"
+    natgw2.vm.hostname = "natgw1"
+    natgw2.vm.network  :private_network, ip: "192.168.1.1", virtualbox__intnet: "client_net2"
+    natgw2.vm.network  :private_network, ip: "172.16.0.2",  virtualbox__intnet: "fake_internet"
+    natgw2.vm.provision "shell", inline: $natgw_script
+  end
+end
