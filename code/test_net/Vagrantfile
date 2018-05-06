@@ -8,20 +8,19 @@ route add default gw 192.168.1.1
 SCRIPT
 
 $natgw_script = <<-SCRIPT
-echo 1 > /proc/sys/net/ipv4/ip_forward
-/sbin/iptables -t nat -A POSTROUTING -o eth2 -j MASQUERADE
-/sbin/iptables -A FORWARD -i eth1 -o eth2 -m state --state RELATED,ESTABLISHED -j ACCEPT
-/sbin/iptables -A FORWARD -i eth1 -o eth2 -j ACCEPT
+sysctl net.inet.ip.forwarding=1
+echo realnet  = "em0" >/etc/pf.conf
+internal = "em1" >>/etc/pf.conf
+fakenet  = "em2" >>/etc/pf.conf
+pass out on $fakenet from 192.168.1.0/24 to any nat-to $fakenet >>/etc/pf.conf
+pass out on $realnet from 192.168.1.0/24 to any nat-to $realnet >>/etc/pf.conf
 
-/sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-/sbin/iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-/sbin/iptables -A FORWARD -i eth1 -o eth0 -j ACCEPT
+pfctl -f /etc/pf.conf
 SCRIPT
 
 $server_script = <<-SCRIPT
-apt-get -y install coturn
-cp /vagrant/turnserver.conf /etc/turnserver.conf
-turnserver &
+apt-get -y install stun
+stund -h 172.16.0.10 -a 172.16.0.11 &
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -41,7 +40,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "natgw1" do |natgw1|
-    natgw1.vm.box      = "debian/jessie64"
+    natgw1.vm.box      = "generic/openbsd6"
     natgw1.vm.hostname = "natgw1"
     natgw1.vm.network  :private_network, ip: "192.168.1.1", virtualbox__intnet: "client_net1"
     natgw1.vm.network  :private_network, ip: "172.16.0.1",  virtualbox__intnet: "fake_internet"
@@ -49,8 +48,8 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "natgw2" do |natgw2|
-    natgw2.vm.box      = "debian/jessie64"
-    natgw2.vm.hostname = "natgw1"
+    natgw2.vm.box      = "generic/openbsd6"
+    natgw2.vm.hostname = "natgw2"
     natgw2.vm.network  :private_network, ip: "192.168.1.1", virtualbox__intnet: "client_net2"
     natgw2.vm.network  :private_network, ip: "172.16.0.2",  virtualbox__intnet: "fake_internet"
     natgw2.vm.provision "shell", inline: $natgw_script
@@ -60,6 +59,7 @@ Vagrant.configure("2") do |config|
     server.vm.box      = "debian/jessie64"
     server.vm.hostname = "server"
     server.vm.network  :private_network, ip: "172.16.0.10", virtualbox__intnet: "fake_internet"
+    server.vm.network  :private_network, ip: "172.16.0.11", virtualbox__intnet: "fake_internet"
     server.vm.provision "shell", inline: $server_script
   end
 end
