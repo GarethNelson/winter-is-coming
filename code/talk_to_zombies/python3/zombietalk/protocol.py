@@ -15,11 +15,10 @@ class BaseProtocolState:
    def cmd_usage(self,*args,proto_handler=None):
        """Get usage information for a command, if no argument is given, all commands are summarised""" 
        if len(args)==1:
-          if not hasattr(self,'cmd_%s' % args[0]):
-             return 'Sorry, no such command, send USAGE to get usage information for all commands'
+          if not hasattr(self,'cmd_%s' % (args[0].lower())):
+             return 'ERROR: Sorry, no such command, send USAGE to get usage information for all commands'
           else:
-             return getattr(self,'cmd_%s' % args[0]).__doc__
-
+             return getattr(self,'cmd_%s' % args[0].lower()).__doc__
        retval = ''
        for item in dir(self):
            if item.startswith('cmd_'):
@@ -53,7 +52,7 @@ class ProtocolHandler:
            line(str): The line of input to process
        """
        line       = line.strip('\n')
-       split_line = line.split(' ')
+       split_line = line.split()
        cmd_name   = split_line[0].lower()
        cmd_args   = split_line[1:]
        try:

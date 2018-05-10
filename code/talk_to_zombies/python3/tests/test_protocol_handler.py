@@ -13,3 +13,17 @@ def test_invalid_cmd():
     handler = protocol.ProtocolHandler()
     retval  = handler.handle_line('NOSUCHCMD\n')
     assert retval.startswith('ERROR')
+
+def test_invalid_usage():
+    """ Test usage for a non-existent command returns an error
+    """
+    handler = protocol.ProtocolHandler()
+    retval  = handler.handle_line('USAGE NOSUCHCMD\n')
+    assert retval.startswith('ERROR')
+
+def test_usage_usage():
+    """ Test that sending USAGE USAGE doesn't return an error
+    """ 
+    handler = protocol.ProtocolHandler()
+    retval  = handler.handle_line('USAGE USAGE\n')
+    assert not retval.startswith('ERROR')
