@@ -20,4 +20,43 @@ game session
    command queue for players
         server/protocol can add shoot commands to the queue
 
-   
+Commands
+  Each command a class
+  Invocation method
+  Usage method
+
+Protocol states
+  LOBBY
+  INGAME
+  ENDGAME
+
+Game states
+  STARTGAME
+  GAMEPLAY
+  GAMEOVER
+
+NetworkServer
+  Listens for connections, starts up coroutine to run ProtocolHandler for each client
+
+ProtocolHandler
+  Receives lines from clients, interprets and dispatches to the appropriate state
+
+MessageDispatcher
+  Dispatches messages to a group of objects
+
+Game session
+  Handles routing messages to ingame entities (via MessageDispatcher)
+  Handles game state transitions (via GameState instance)
+
+GameState
+  FSM of game states
+
+Zombie AI
+  Subclass of ingame entity
+
+Ingame entity
+  Accepts messages via MessageReceiver interface
+
+Player entity
+  Subclass of ingame entity
+
