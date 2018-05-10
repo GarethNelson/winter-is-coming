@@ -26,12 +26,13 @@ class BaseProtocolState:
        return retval
 
 class LobbyState(BaseProtocolState):
-  pass
+   def __init__(self,game_lobby=None):
+       pass
 
 class ProtocolHandler:
    """ Implements the protocol as described in documentation
    """
-   def __init__(self,server=None,endpoint=None,start_state=LobbyState()):
+   def __init__(self,server=None,endpoint=None,start_state=None):
        """ Keyword args:
            server:   The server this protocol handler is being run by
            endpoint: The endpoint associated with this protocol handler, usually an IP address and port, or a socket
