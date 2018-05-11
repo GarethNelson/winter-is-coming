@@ -38,3 +38,9 @@ class GameLobby:
        for k,v in self.game_sessions.items():
            retval[k] = v.get_player_count()
        return retval
+   def get_game(self, game_name):
+       """ Returns the game session if it exists, otherwise returns None
+       """
+       if game_name in self.game_sessions.keys():
+          return self.game_sessions[game_name]
+       return None # not technically required, but makes it more clear

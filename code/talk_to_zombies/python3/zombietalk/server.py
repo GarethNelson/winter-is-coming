@@ -8,14 +8,16 @@ logging.basicConfig(level=logging.INFO)
 
 class ZombieGameServer:
    def __init__(self):
-       self.clients       = {}
-       self.loop          = asyncio.get_event_loop()
-       self.lobby         = game_lobby.GameLobby()
-       self.start_state   = protocol.LobbyState(game_lobby = self.lobby)
+       self.clients        = {}
+       self.client_writers = {}
+       self.loop           = asyncio.get_event_loop()
+       self.lobby          = game_lobby.GameLobby()
+       self.start_state    = protocol.LobbyState(game_lobby = self.lobby)
    async def handle_connection(self, reader, writer):
-       endpoint               = ':'.join(map (lambda x: str(x), writer.get_extra_info('peername')))
-       proto_handler          = protocol.ProtocolHandler(server=self, endpoint=endpoint, start_state=self.start_state)
-       self.clients[endpoint] = proto_handler
+       endpoint                      = ':'.join(map (lambda x: str(x), writer.get_extra_info('peername')))
+       proto_handler                 = protocol.ProtocolHandler(server=self, endpoint=endpoint, start_state=self.start_state)
+       self.clients[endpoint]        = proto_handler
+       self.client_writers[endpoint] = writer
        logging.info('New connection %s', endpoint)
        while proto_handler.active:
           try:
@@ -30,6 +32,8 @@ class ZombieGameServer:
 
        self.delete_client(endpoint)
        writer.close()
+   def sendto_client(self,endpoint,data):
+       self.client_writers[endpoint].write(data.encode())
    def delete_client(self,endpoint):
        del self.clients[endpoint]
        logging.info('Deleted client %s', endpoint)

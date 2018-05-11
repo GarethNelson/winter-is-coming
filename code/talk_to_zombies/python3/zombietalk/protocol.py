@@ -50,6 +50,13 @@ class LobbyState(BaseProtocolState):
        retval = ''
        for k,v in game_counts:
            retval += 'GAME %s, %d players\n' % (k,v)
+   def cmd_join(self,*args,proto_handler=None):
+       """Join a game"""
+       session = self.game_lobby.join_game(args[0]) 
+       if session is None:
+          return 'ERROR: No such game session, perhaps you meant to use START?'
+       new_state = InGameState(game_session=game_session)
+       proto_handler.enter_state(new_state)
 
 class ProtocolHandler:
    """ Implements the protocol as described in documentation
@@ -68,7 +75,19 @@ class ProtocolHandler:
        """ 
        self.active = False
        self.state.on_close(proto_handler=self)
+   def enter_State(self,new_state):
+       """ Switch to a new state
+       """
+       self.state.on_close(proto_handler=self)
+       self.state = new_state
+       self.state.on_open(proto_handler=self)
+   def send_line(self,line):
+       """ Send a line immediately to the client
 
+       Args:
+           line(str): The line to send to the client, this will be sent via the server
+       """
+       self.server.sendto_client(self.endpoint,line+'\n')
    def handle_line(self,line):
        """ Handle a line sent from the client
        
