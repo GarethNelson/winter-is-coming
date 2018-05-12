@@ -1,4 +1,3 @@
-import traceback
 
 class BaseProtocolState:
    """ The protocol handler is essentially a FSM, this class is the base class for all states
@@ -52,11 +51,27 @@ class LobbyState(BaseProtocolState):
            retval += 'GAME %s, %d players\n' % (k,v)
    def cmd_join(self,*args,proto_handler=None):
        """Join a game"""
-       session = self.game_lobby.join_game(args[0]) 
+       session = self.game_lobby.get_game(args[0]) 
        if session is None:
           return 'ERROR: No such game session, perhaps you meant to use START?'
        new_state = InGameState(game_session=game_session)
        proto_handler.enter_state(new_state)
+   def cmd_name(self,*args,proto_handler=None):
+       """Change username"""
+       proto_handler.username=args[0]
+   def cmd_start(self,*args,proto_handler=None):
+       """Start a game"""
+       session = self.game_lobby.get_game(args[0])
+       if session is not None:
+          return 'ERROR: Game already exists, perhaps you meant to use JOIN?'
+
+class InGameState(BaseProtocolState):
+   """ This is the state used when a client is currently connected to an active game
+   """
+   def __init__(self,game_session=None):
+       self.session = game_session
+   def on_open(self,proto_handler=None):
+       self.session.send_join_player(self)
 
 class ProtocolHandler:
    """ Implements the protocol as described in documentation
@@ -70,6 +85,7 @@ class ProtocolHandler:
        self.endpoint = endpoint
        self.state    = start_state
        self.active   = True
+       self.username = endpoint
    def close(self):
        """ Close the connection, this method should be called from other classes and NOT the method in the server
        """ 
